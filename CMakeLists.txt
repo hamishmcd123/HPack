@@ -1,3 +1,6 @@
 ﻿cmake_minimum_required (VERSION 3.8)
+set(CMAKE_CXX_STANDARD 20)
 project ("HPack")
 add_subdirectory ("HPack")
+# add_executable(HpackTest main.cpp)
+# target_link_libraries(HpackTest PRIVATE hpack)
