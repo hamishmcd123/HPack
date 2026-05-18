@@ -4,7 +4,7 @@
  
 Example usage:
 ```cpp
-static hpack::PackerContext ctx;
+static hpack::PackingContext ctx;
 
 int main() {
   ctx._packing_width = 2048; // Set atlas width in pixels. Atlas height will grow.
