@@ -65,7 +65,7 @@ namespace hpack {
 
         // Place the rectangle
         _packed_rectangles.push_back({best_x, best_y, current_width, current_height, current_rectangle._id});
-        _rectangles_to_pack.erase(_rectangles_to_pack.begin());
+        _rectangles_to_pack.pop_front();
 
         if (best_index + 1 < (int)_skyline.size() &&
             _skyline[best_index]._x + current_rectangle._width != _skyline[best_index + 1]._x) {

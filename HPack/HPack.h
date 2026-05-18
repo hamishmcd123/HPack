@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include <deque>
 
 namespace hpack {
     typedef int32_t i32;
@@ -45,7 +46,7 @@ namespace hpack {
             i32 _packing_height = 0;
         private:
             i32 _ids = 0;
-            std::vector<Rectangle> _rectangles_to_pack{};
+            std::deque<Rectangle> _rectangles_to_pack{};
             std::vector<Rectangle> _packed_rectangles{};
             std::vector<Point> _skyline{};
             std::vector<AtlasEntry> _entries{};
