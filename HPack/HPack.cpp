@@ -2,7 +2,6 @@
 #include "Vendor/stb_image.h"
 #include "Vendor/stb_image_write.h"
 #include "HPack.h"
-#include <thread>
 
 namespace hpack {
 
@@ -11,7 +10,6 @@ namespace hpack {
                 return a._height > b._height;
 			});
     }
-
     void PackingContext::PackNextRectangle() {
         Rectangle current_rectangle = _rectangles_to_pack.front();
         int current_width = current_rectangle._width;
@@ -96,9 +94,61 @@ namespace hpack {
         }
     }
 
-    void WriteAtlasINI(const PackingContext& ctx) {
-        // Convert packed rectangles into UVs
-        HPACK_ASSERT(ctx._has_been_packed && "Attempted to get INI for unpacked context!");
+    void PackingContext::WriteAtlasINI() {
+        HPACK_ASSERT(_has_been_packed && "Attempted to write INI for unpacked context!");
+            
+        float x_factor = 1.0f / _packing_width;
+        float y_factor = 1.0f / _packing_height;
+
+        for (const auto& rect : _packed_rectangles) {
+            auto& entry = _entries[rect._id - 1];
+            /*
+                [0] tl
+                [1] bl
+                [2] br
+                [3] tr
+            */
+
+            if (FLIP_VERTICALLY) {
+                entry._uv[1][0] = rect._x * x_factor;
+                entry._uv[1][1] = (_packing_height - rect._y) * y_factor;
+
+                entry._uv[0][0] = rect._x * x_factor;
+                entry._uv[0][1] = (_packing_height - rect._y - rect._height) * y_factor;
+
+                entry._uv[3][0] = (rect._x + rect._width) * x_factor;
+                entry._uv[3][1] = (_packing_height - rect._y - rect._height) * y_factor;
+
+                entry._uv[2][0] = (rect._x + rect._width) * x_factor;
+                entry._uv[2][1] = (_packing_height - rect._y) * y_factor;
+            }
+            else {
+				entry._uv[0][0] = rect._x * x_factor;
+				entry._uv[0][1] = (_packing_height - rect._y) * y_factor;
+
+				entry._uv[1][0] = rect._x * x_factor;
+				entry._uv[1][1] = (_packing_height - rect._y - rect._height) * y_factor;
+
+				entry._uv[2][0] = (rect._x + rect._width) * x_factor;
+				entry._uv[2][1] = (_packing_height - rect._y - rect._height) * y_factor;
+
+				entry._uv[3][0] = (rect._x + rect._width) * x_factor;
+				entry._uv[3][1] = (_packing_height - rect._y) * y_factor;
+			}
+
+        }
+        auto out = fopen("output.ini", "w");
+        HPACK_ASSERT(out && "Failed to open output stream!");
+
+        for (const auto& entry : _entries) { 
+            fprintf(out, "[%s]\n", entry._entry_name.c_str());
+            fprintf(out, "tluv=%f,%f\n", entry._uv[0][0], entry._uv[0][1]);
+            fprintf(out, "bluv=%f,%f\n", entry._uv[1][0], entry._uv[1][1]);
+            fprintf(out, "bruv=%f,%f\n", entry._uv[2][0], entry._uv[2][1]);
+            fprintf(out, "truv=%f,%f\n", entry._uv[3][0], entry._uv[3][1]);
+        }
+
+        fclose(out);
     }
 
     void PackingContext::AddImage(const std::string& fpath, const std::string& entry_name) {
@@ -123,6 +173,7 @@ namespace hpack {
     void PackingContext::PackAtlas() {
 
         HPACK_ASSERT(_entries.size() != 0 && "Attempted to pack an atlas with 0 entries!"); // Credits to Mr Lewis Greagen for correcting this spelling mistake.
+        HPACK_ASSERT(_packing_width != 0 && "Remember to set the packing width!");
 
         _packed_rectangles.reserve(_entries.size());
         _skyline = { {0, 0}, {_packing_width, 0} };
@@ -143,16 +194,15 @@ namespace hpack {
             PackNextRectangle();
         }
         
-        int max_height = -INT_MAX;
+        int max_height = INT_MIN;
         for (const auto& rec : _packed_rectangles) {
             if (rec._height + rec._y > max_height) max_height = rec._height + rec._y;
         }
         _packing_height = max_height;
 
-        // Allocate memory for texture
         _atlas = new unsigned char[_packing_width * _packing_height * 4]();
+        
         // Write texture based on rectangles id --> atlasEntry
-
         for (const auto& rect : _packed_rectangles) {
             auto& info = _entries[rect._id - 1]._info;
             for (i32 row = 0; row < info._y; row++) {
@@ -163,17 +213,105 @@ namespace hpack {
                 );
             }
         }
-
+        if (FLIP_VERTICALLY) {
+            stbi_flip_vertically_on_write(1);
+        }
         stbi_write_png("output.png", _packing_width, _packing_height, 4, _atlas, _packing_width * 4);
-        // Free atlas
         delete[] _atlas;
+        _has_been_packed = true;
     }
 
-    void PackingContext::ClearImages() {
+    void PackingContext::Clear() {
         for (auto& entry : _entries) {
             stbi_image_free(entry._info._data);
         }
         _entries.clear();
+    }
+
+    void Atlas::Create(const std::string& fpath)
+    {
+        // Parse config file 
+        auto file = fopen(fpath.c_str(), "r");
+        char line[256];
+        char current_section[128];
+
+        HPACK_ASSERT(file && "Failed to open config file!")
+		while (fgets(line, sizeof(line), file) != NULL) {
+            char* p = line;
+            while (*p == ' ' || *p == '\t') p++;
+            if (*p == '\n' || *p == '\0' || *p == ';' || *p == '#') continue;
+            
+            if (*p == '[') {
+                char* close = strchr(p, ']');
+                if (close) {
+                    size_t diff = close - p - 1;
+                    strncpy(current_section, p + 1, diff);
+                    current_section[diff] = '\0';
+                    std::string stringified(current_section);
+                    auto it = _atlas.find(stringified);
+                    HPACK_ASSERT(it == _atlas.end() && "Duplicate names are not allowed in the Atlas!")
+                    _atlas[stringified];
+                }
+                else {
+                    HPACK_ASSERT(0 && "Missing closing ] from config file!")
+                }
+            }
+            else {
+                char key[128], value[128];
+                char* keyend = strchr(p, '=');
+                if (keyend) {
+                    size_t diff = keyend - p;
+                    strncpy(key, p, diff + 1);
+                    key[diff] = '\0';
+
+                    char* term = strchr(p, '\0');
+                    size_t diff2 = term - keyend;
+                    strncpy(value, p + diff + 1, diff2 + 1);
+                    value[diff2] = '\0';
+                    
+                    bool succeeded = false;
+
+                    if (strcmp(key, "tluv") == 0) {
+                        char* end = nullptr;
+                        float a = strtof(value, &end);
+                        float b = strtof(end + 1, nullptr);
+                        succeeded = true;
+                        _atlas[current_section]._uvs[0][0] = a;
+                        _atlas[current_section]._uvs[0][1] = b;
+                    }
+                    else if (strcmp(key, "bluv") == 0) {
+						char* end = nullptr;
+                        float a = strtof(value, &end);
+                        float b = strtof(end + 1, nullptr);
+                        succeeded = true;
+                        _atlas[current_section]._uvs[1][0] = a;
+                        _atlas[current_section]._uvs[1][1] = b;
+                    }
+                    else if (strcmp(key, "bruv") == 0) {
+						char* end = nullptr;
+                        float a = strtof(value, &end);
+                        float b = strtof(end + 1, nullptr);
+                        succeeded = true;
+                        _atlas[current_section]._uvs[2][0] = a;
+                        _atlas[current_section]._uvs[2][1] = b;
+                    }
+                    else if (strcmp(key, "truv") == 0) {
+ 						char* end = nullptr;
+                        float a = strtof(value, &end);
+                        float b = strtof(end + 1, nullptr);
+                        succeeded = true;
+                        _atlas[current_section]._uvs[3][0] = a;
+                        _atlas[current_section]._uvs[3][1] = b;
+                    }
+                    HPACK_ASSERT(succeeded && "Unexpected key in config file!")
+                }
+                else {
+                    HPACK_ASSERT(0 && "Malformed key-value assignment");
+                }
+		   }
+		}
+
+        fclose(file);
     }
 
 } //namespace HPack

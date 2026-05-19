@@ -3,6 +3,10 @@
 #include <vector>
 #include <string>
 #include <deque>
+#include <unordered_map>
+#include <cstring>
+
+#define FLIP_VERTICALLY 1
 
 namespace hpack {
     typedef int32_t i32;
@@ -20,9 +24,9 @@ namespace hpack {
     };
 
     struct AtlasEntry {
-        const char* _entry_name;
+        std::string _entry_name;
         ImageInfo _info;
-        i32 _uv[4][2]; // Texcoords
+        float _uv[4][2]; // Texcoords
         i32 _id;
     };
 
@@ -38,24 +42,33 @@ namespace hpack {
 
     class PackingContext {
         public:
-            void AddImage(const std::string& fpath, const std::string& entry_name);
+            void AddImage(const std::string&, const std::string&);
             void PackAtlas();
-            void ClearImages();
+            void Clear();
             bool _has_been_packed = false;
             i32 _packing_width = 0;
             i32 _packing_height = 0;
+			void WriteAtlasINI();
         private:
             i32 _ids = 0;
             std::deque<Rectangle> _rectangles_to_pack{};
-            std::vector<Rectangle> _packed_rectangles{};
             std::vector<Point> _skyline{};
+            std::vector<Rectangle> _packed_rectangles{};
             std::vector<AtlasEntry> _entries{};
             void PackNextRectangle();
             void SortRectanglesByHeight();
             unsigned char* _atlas;
     };
 
-    void WriteAtlasINI(const PackingContext&);
+    class Atlas {
+    public:
+        void Create(const std::string&);
+        struct Entry {
+            float _uvs[4][2];
+        };
+        std::unordered_map<std::string, Entry> _atlas;
+    };
+
 
 } //namespace hpack
 
