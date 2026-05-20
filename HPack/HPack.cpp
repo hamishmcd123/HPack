@@ -1,6 +1,11 @@
 ﻿// Or point at your project's
 #include "Vendor/stb_image.h"
 #include "Vendor/stb_image_write.h"
+
+#ifdef WIN32
+	#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include "HPack.h"
 
 namespace hpack {
@@ -179,11 +184,11 @@ namespace hpack {
         _skyline = { {0, 0}, {_packing_width, 0} };
         for (const auto& entry : _entries) {
             Rectangle new_rect{
-                ._x = 0,
-                ._y = 0,
-                ._width = entry._info._x,
-                ._height = entry._info._y,
-                ._id = entry._id
+                0,
+                0,
+                entry._info._x,
+                entry._info._y,
+                entry._id
             };
             _rectangles_to_pack.push_back(new_rect);
         }
