@@ -114,7 +114,7 @@ namespace hpack {
                 [3] tr
             */
 
-            if (FLIP_VERTICALLY) {
+            if (_flip_vertically) {
                 entry._uv[1][0] = rect._x * x_factor;
                 entry._uv[1][1] = (_packing_height - rect._y) * y_factor;
 
@@ -218,7 +218,7 @@ namespace hpack {
                 );
             }
         }
-        if (FLIP_VERTICALLY) {
+        if (_flip_vertically) {
             stbi_flip_vertically_on_write(1);
         }
         stbi_write_png("output.png", _packing_width, _packing_height, 4, _atlas, _packing_width * 4);

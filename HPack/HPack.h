@@ -6,8 +6,6 @@
 #include <unordered_map>
 #include <cstring>
 
-#define FLIP_VERTICALLY 1
-
 namespace hpack {
     typedef int32_t i32;
 
@@ -49,6 +47,8 @@ namespace hpack {
             i32 _packing_width = 0;
             i32 _packing_height = 0;
 			void WriteAtlasINI();
+            std::vector<AtlasEntry>& GetEntries() {return _entries;}
+            bool _flip_vertically = true;
         private:
             i32 _ids = 0;
             std::deque<Rectangle> _rectangles_to_pack{};
