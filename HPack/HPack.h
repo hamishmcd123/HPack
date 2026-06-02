@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <cstring>
 #include <climits>
+#include <cstdint>
 
 namespace hpack {
     typedef int32_t i32;

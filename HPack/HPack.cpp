@@ -152,7 +152,6 @@ namespace hpack {
             fprintf(out, "bruv=%f,%f\n", entry._uv[2][0], entry._uv[2][1]);
             fprintf(out, "truv=%f,%f\n", entry._uv[3][0], entry._uv[3][1]);
         }
-
         fclose(out);
     }
 
